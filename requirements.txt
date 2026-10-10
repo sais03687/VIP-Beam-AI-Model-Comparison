@@ -1,0 +1,5 @@
+scipy>=1.10
+matplotlib>=3.7
+reportlab>=4.0
+notebook>=7.0
+ipykernel>=6.0
