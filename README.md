@@ -1,50 +1,100 @@
-# VIP Individual Project Part 2 — Beam design and AI model comparison
+# VIP Individual Project Part 2 — Beam Design and AI Model Comparison
 
-This project uses the student's initial `surams_beam_ai.py` evaluation and the objective/constraints from `beam_evaluation_VIP_fa26.py` and Lecture 6. The supplied `beam_model.py` is unchanged. `evaluate_beam` accepts **millimeters**; the assignment PDF has one conflicting sentence saying meters, but its sample call and actual code are in millimeters.
+This project compares SciPy SLSQP optimization with two AI design agents—Ollama Llama 3.2 1B and OpenAI GPT-4.1-mini—for minimizing the mass of a rectangular steel beam while satisfying deflection and stress constraints.
 
-## Requirements
+**Repository:** https://github.com/sais03687/VIP-Beam-AI-Model-Comparison
 
-- Python 3.10 or newer
-- `pip install -r requirements.txt`
-- Ollama installed and running locally, with `ollama pull llama3.2:1b`
-- An OpenAI API key, configured as environment variable `OPENAI_API_KEY` (never store it in the code or repository)
-- Model `gpt-4.1-mini` available through the OpenAI API (can change with `--gpt-model`)
+## Design problem
 
-## Run
+The unmodified instructor-supplied `beam_model.py` evaluates each design using dimensions in **millimeters**.
 
-From this directory:
+| Parameter | Value |
+|---|---|
+| Width bounds | 20–100 mm |
+| Height bounds | 40–120 mm |
+| Maximum midspan deflection | 1.0 mm |
+| Maximum bending-surface von Mises stress | 120 MPa |
+| Objective | Minimize beam mass (kg), subject to both limits |
+| Shared starting design | 50 × 80 mm (31.4 kg) |
+
+## Completed experiment results
+
+| Method | Run | Best feasible mass | Best width × height | Evaluator calls | Invalid AI replies | Elapsed time |
+|---|---:|---:|---|---:|---:|---:|
+| SciPy SLSQP | 1 | 13.4233 kg | 20.000 × 85.499 mm | 152 | N/A | ~0.01 s |
+| Ollama Llama 3.2 1B | 1 | 31.4000 kg | 50 × 80 mm | 12 | 0 | 45.07 s |
+| Ollama Llama 3.2 1B | 2 | 31.4000 kg | 50 × 80 mm | 12 | 0 | 29.32 s |
+| OpenAI GPT-4.1-mini | 1 | 13.4235 kg | 20 × 85.5 mm | 12 | 0 | 10.64 s |
+| OpenAI GPT-4.1-mini | 2 | 13.4235 kg | 20 × 85.5 mm | 12 | 0 | 9.09 s |
+
+Both AI models ran twice. Each run included the same starting design followed by **11 proposed designs**, for **44 AI proposals** in total. All 44 proposals were valid; none required repair or substitution. GPT reached a feasible design close to the SciPy optimum in both runs. Llama did not improve on the common starting design within its proposal budget.
+
+The 152 SciPy calls include objective and constraint evaluations and floating-point feasibility checks. These checks are not invalid AI responses. The comparison uses unequal evaluation budgets and is not a controlled comparison of equal numbers of evaluations.
+
+## Files
+
+| File | Description |
+|---|---|
+| `beam_model.py` | Original instructor-provided beam evaluator; kept unchanged |
+| `surams_beam_ai.py` | SciPy optimizer, Llama and GPT agents, validation, CSV logging, graph, and report generation |
+| `surams_beam_ai.ipynb` | Notebook demonstrating the evaluator/optimizer and containing the full-run configuration and results viewer |
+| `surams_beam_ai.csv` | Recorded SciPy calls and all four live AI runs |
+| `surams_beam_ai.pdf` | Results report with method comparison and search-history graph |
+| `requirements.txt` | Python dependencies |
+| `surams_beam_ai_search_history.png` | Optional standalone search-history plot; also embedded in PDF |
+| `run_metadata.json` | Optional optimizer diagnostics and model settings |
+
+## Installation and prerequisites
+
+Requires Python 3.10 or newer, Ollama, and access to the OpenAI API.
+
+From the repository folder, run:
 
 ```powershell
 python -m pip install -r requirements.txt
 ollama pull llama3.2:1b
-# Have Ollama running (ollama serve if necessary)
-$env:OPENAI_API_KEY="YOUR_API_KEY"  # set locally only; do not paste in submitted files
-python surams_beam_ai.py --github-url "https://github.com/YOUR_USERNAME/YOUR_REPOSITORY"
 ```
 
-Run just the SciPy baseline, without contacting model providers:
+Ensure Ollama is running locally. If necessary, start it with `ollama serve` in a separate terminal. Set your own OpenAI API key in the PowerShell session before a live GPT run:
+
+```powershell
+$env:OPENAI_API_KEY="YOUR_API_KEY"
+```
+
+Never put an actual API key in source files, notebook outputs, commits, or the README.
+
+## Running the experiment
+
+Run all methods and regenerate the CSV, graph, report, and metadata:
+
+```powershell
+python surams_beam_ai.py --github-url "https://github.com/sais03687/VIP-Beam-AI-Model-Comparison"
+```
+
+**Warning:** This command runs fresh model trials and **overwrites the existing recorded outputs**. The committed CSV contains the completed experimental results; you do not need to rerun the models to review them.
+
+To run only the numerical optimizer:
 
 ```powershell
 python surams_beam_ai.py --optimizer-only
 ```
 
-**Do not submit the pre-generated baseline-only CSV and PDF as final results.** Running the full command overwrites them with actual model evaluations. Each Llama and GPT agent gets two fresh runs with the 50 x 80 mm starting design, followed by exactly 11 proposal opportunities per run. The same prompt constructor and JSON validator are used for both models. Replies are never repaired, clipped, or substituted. Failure to reach the service is logged and consumes a proposal opportunity; repair the service and rerun both trials for valid comparisons.
+This also regenerates output files for the optimizer-only run, so use a separate output directory if you want to preserve the completed results:
 
-## Outputs
+```powershell
+python surams_beam_ai.py --optimizer-only --output-dir scipy_test
+```
 
-- `surams_beam_ai.ipynb` — notebook to import and run the experiment
-- `surams_beam_ai.py` — command-line experiment runner
-- `surams_beam_ai.csv` — all evaluated calls, plus attempted AI proposals
-- `surams_beam_ai.pdf` — report with table, convergence summary and AI histories
-- `surams_beam_ai_search_history.png` — plot embedded in the report
-- `run_metadata.json` — model settings and optimizer diagnostics
+To inspect the saved results without making model calls, open `surams_beam_ai.csv` or use the results-viewing cell in `surams_beam_ai.ipynb`.
 
-`surams_beam_ai.csv` records every SciPy evaluation (objective, constraint and final evaluations) as well as every attempted model proposal. Multiple SciPy rows may have identical candidates because the optimizer evaluates the same design through different function callbacks. `run_metadata.json` counts all black-box calls. Note the optimizer optimum lies on the deflection boundary; the runner logs extremely small numerical interior checks to ensure the final selected design meets the unchanged evaluator's *strict* feasibility flag.
+## Experimental procedure
 
-## Reproducibility and honesty
-
-The local environment used to prepare this package did not have an Ollama executable or an OpenAI API key. Only the numerical optimization was executed. AI results are **not** simulated or fabricated. Run the full experiment on your Windows machine to produce the final CSV, figure, and PDF. Add your actual GitHub repository URL and push `beam_model.py`, the notebook, main script, results CSV, and README. Do not commit secrets, `.env`, or environments.
+- Both models use the same prompt-building function, proposal validator, starting design (50 × 80 mm), and sequential evaluation feedback.
+- The models are `llama3.2:1b` (local Ollama) and `gpt-4.1-mini` (OpenAI API), with temperature set to `0.2`.
+- Every AI response must be a JSON object containing exactly numeric `width_mm` and `height_mm` within the allowed bounds. Invalid responses would consume a proposal opportunity without calling the beam evaluator.
+- A candidate becomes the current best only if it satisfies **both** physical limits and has lower mass than the previous best feasible design.
+- The CSV logs evaluated designs, feasibility, response statuses, elapsed time, and best feasible mass throughout each run.
 
 ## Limitations
 
-The provided black box is a beam-theory calculation, not finite-element analysis. It excludes self-weight, contact concentration, large deflections and dynamic loads. Agent performance can be affected by temperature, language-model version and stochastic proposal sequences. The optimizer and agents share the evaluator but use very different evaluation budgets.
+The shared black-box evaluator uses linear-elastic, small-deflection beam theory rather than finite-element analysis. It excludes self-weight, local contact effects, impacts, and other real-world complexities. Results may vary with model versions, prompting, sampling settings, and API behavior. Only two trials per AI model were conducted, so these findings should not be treated as a broad performance benchmark.
